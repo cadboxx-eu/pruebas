@@ -1,0 +1,259 @@
+
+var lcCurrMatInd = -1;
+var lcMaterials = null;
+var lcMaterialsOrg = null;
+
+
+function loadMaterials()
+{
+	if (null == glMV || null == glMV.model)
+	   {
+	    lcMaterials = null;
+	    
+		return;
+	   }
+	   
+	lcMaterials = [];
+	lcMaterialsOrg = [];
+	
+	for (var i = 0; i < glMV.model.materials.length; i++)
+	    {
+		 var mat = { use:false, ind:i, name:glMV.model.materials[i].name, useColor:false, useMetal:false, metal:null, useRough:false, rough:null, useTexture:false, texture:"", useMap:false, map:"" }
+         
+		 var m = glMV.model.materials[i].pbrMetallicRoughness;
+		 
+		 if (mat.name === undefined || mat.name.length < 1) mat.name = "Material-"+i;
+		 mat.color = ColorToHex(m.baseColorFactor[0], m.baseColorFactor[1], m.baseColorFactor[2]);
+		 
+		 if (null != m.metalicFactor)   mat.metal = m.metalicFactor;
+		 if (null != m.roughnessFactor) mat.rough = m.roughnessFactor;
+		 
+		 if (null == m.baseColorTexture)         mat.texture = "ignore";
+	     if (null == m.metallicRoughnessTexture) mat.map     = "ignore";
+
+         lcMaterials.push(mat);
+		 
+		 var org = { color:mat.color, metal:mat.metal, rough:mat.rough };
+		 lcMaterialsOrg.push(org);
+		}
+
+    var mats = glPresentation.slides[glSlide].materials;
+    if (mats === undefined || null == mats) return;
+
+    for (var m = 0; m < mats.length; m++)
+	    {
+		 lcMaterials[mats[m].ind] = mats[m];
+		}
+}
+
+function saveMaterials(slide)
+{
+	if (null == lcMaterials || slide < 0 || slide >= glPresentation.slides.length) return;
+	
+	var mats = [];
+	
+	for (var i = 0; i < lcMaterials.length; i++)
+	    {
+		 if (true == lcMaterials[i].use) mats.push(lcMaterials[i]);
+	    }
+	
+	glPresentation.slides[slide].materials = mats;
+}
+
+function showMaterialsEditor()
+{	
+	if (null == lcMaterials) 
+	   {
+		$("#materialEditorContent").html("");
+		
+		return;
+	   }
+	   
+	var str = "";   
+	
+	for (var i = 0; i < lcMaterials.length; i++)
+	    {	
+		 if (i == lcCurrMatInd) 
+		    {
+			 str += '<div class="w3-button w3-orange w3-small w3-center" style="width:100%" onclick="lcCurrMatInd=-1; showMaterialsEditor();">'+lcMaterials[i].name+'</div><br>';	 
+			 str += BuildMaterial();
+			}
+         else {
+			   str += '<div class="w3-button w3-gray w3-small w3-center" style="width:100%" onclick="lcCurrMatInd='+i+'; showMaterialsEditor();">'+lcMaterials[i].name+'</div><br>';
+		      }	
+        }
+		
+    $("#materialEditorContent").html(str);
+    $("#materialEditor").show();	
+	
+	setMaterial();
+}
+
+function updateMaterial()
+{
+	if (lcCurrMatInd < 0 || lcCurrMatInd >= lcMaterials.length) return;
+	var m   = lcMaterials[lcCurrMatInd];
+	var o   = lcMaterialsOrg[lcCurrMatInd];
+    var mat = glMV.model.materials[lcCurrMatInd].pbrMetallicRoughness;
+	
+	var clr = o.color
+	if (true == m.use && true == m.useColor) clr = m.color  
+	var c = HexToColor(clr);
+	var color = c.split(',').map(numberString => parseFloat(numberString));
+    mat.setBaseColorFactor(color);
+	  
+	if (true == m.use && true == m.useMetal) mat.setMetallicFactor(m.metal);
+    else mat.setMetallicFactor(o.metal);
+	if (true == m.use && true == m.useRough) mat.setRoughnessFactor(m.rough);
+    else mat.setRoughnessFactor(o.rough);
+
+	if (true == m.use && true == m.useTexture && m.texture != "ignore") mat.baseColorTexture.texture.source.setURI('./assets./'+glId+m.texture); 
+	if (true == m.use && true == m.useMap && m.map != "ignore") mat.metallicRoughnessTexture.texture.source.setURI('./assets./'+glId+m.map); 
+}
+
+function BuildMaterial()
+{
+	if (lcCurrMatInd < 0 || lcCurrMatInd >= lcMaterials.length) return;
+	var m   = lcMaterials[lcCurrMatInd];
+	
+	var str = '<div class="w3-container w3-small"><br>';
+	
+	str += '<div class="w3-bar"><input id="matUse" type="checkbox" class="matCheck w3-padding-small"><label class="w3-padding-small">Modify</label><div class="w3-button w3-yellow w3-round w3-right w3-padding-small" onclick="blinkMaterial()">Blink</div></div><br>';
+	str += '<div class="w3-bar"><input id="matColorUse" type="checkbox" class="matCheck"><label> Color:</label><input class="w3-right" type="color" id="matColor" style="width:60%" value="'+m.color+'"></div><br>';
+	str += '<div class="w3-bar"><input id="matMetalUse" type="checkbox" class="matCheck"><label> Metalness:</label><label id="matMetalVal" class="w3-border w3-right" style="width:10%;">'+m.metal+'</label><input class="w3-right" id="matMetal" style="width:50%;" type="range" min="0" max="1" value="'+m.metal+'" step="0.01"></input></div><br>';
+	str += '<div class="w3-bar"><input id="matRoughUse" type="checkbox" class="matCheck"><label> Roughness:</label><label id="matRoughVal" class="w3-border w3-right" style="width:10%;">'+m.rough+'</label><input class="w3-right" id="matRough" style="width:50%;" type="range" min="0" max="1" value="'+m.rough+'" step="0.01"></input></div><br>';
+	if (m.texture != "ignore") str += '<div class="w3-bar"><input id="matTextureUse" type="checkbox" class="matCheck"><label> Texture:</label><div style="width:60%" class="w3-button w3-border w3-hover-dark-grey w3-right" id="matTexture" onclick="glAssetSelectFunc = matSetTexture; showAssets(\'/\');" ondblclick="matSetTexture(\'\');">'+m.texture+'</div><br><br>';
+	if (m.map != "ignore")     str += '<div class="w3-bar"><input id="matMapUse" type="checkbox" class="matCheck"><label> Rough image:</label><div style="width:60%" class="w3-button w3-border w3-hover-dark-grey w3-right" id="matMap" onclick="glAssetSelectFunc = matSetMap; showAssets(\'/\');" ondblclick="matSetMap(\'\');">'+m.map+'</div><br><br>';
+    
+	str += '<br></div>';
+	
+	return str;
+}
+
+
+function setMaterial()
+{
+	updateMaterial();
+	
+	if (lcCurrMatInd < 0 || lcCurrMatInd >= lcMaterials.length) return;
+	var m   = lcMaterials[lcCurrMatInd];
+    var mat = glMV.model.materials[lcCurrMatInd].pbrMetallicRoughness;
+
+	$("#matColor").on("input change", function()
+	 { 
+	  glChange = true;
+      m.color = this.value;
+	  
+      updateMaterial();
+	 });
+	 
+	$("#matMetal").on("input change", function()
+	{
+		glChange = true;		
+		m.metal = this.value;
+		$("#matMetalVal").html(this.value);
+        
+		updateMaterial();
+	});
+	
+	$("#matRough").on("input change", function()
+	{
+		glChange = true;
+		m.rough = this.value;
+		$("#matRoughVal").html(this.value);
+		
+        updateMaterial();
+	});
+	
+	$("#matUse").prop("checked", m.use);
+	$("#matColorUse").prop("checked", m.useColor);
+	$("#matMetalUse").prop("checked", m.useMetal);
+	$("#matRoughUse").prop("checked", m.useRough);
+	$("#matTextureUse").prop("checked", m.useTexture);
+	$("#matMapUse").prop("checked", m.useMap);
+	
+	$(".matCheck").change(function()
+    {
+	 if (this.id == "matUse") m.use = this.checked;
+	 else if (this.id == "matColorUse") m.useColor = this.checked;
+	 else if (this.id == "matMetalUse") m.useMetal = this.checked;
+	 else if (this.id == "matRoughUse") m.useRough= this.checked;
+	 else if (this.id == "matTextureUse") m.useTexture = this.checked;
+	 else if (this.id == "matMapUse") m.useMap = this.checked;
+	 
+	 updateMaterial();
+	});
+}
+
+function matSetTexture(path)
+{
+   glChange = true;
+   
+   if (path.length > 0) $("#matTexture").html(path);
+   else $("#matTexture").html("");
+   
+   lcMaterials[lcCurrMatInd].texture = path;
+   updateMaterial();
+}
+
+function matSetMap(path)
+{
+   glChange = true;
+   
+   if (path.length > 0) $("#matImage").html(path);
+   else $("#matImage").html("");
+   
+   lcMaterials[lcCurrMatInd].map = path;
+   updateMaterial();
+}
+
+function blinkMaterial()
+{  
+   var mat = glMV.model.materials[lcCurrMatInd].pbrMetallicRoughness;
+   var clr =  mat.baseColorFactor[0]+','+mat.baseColorFactor[1]+','+mat.baseColorFactor[2];
+   var black = '0,0,0'.split(',').map(numberString => parseFloat(numberString));
+   var white = '1,1,1'.split(',').map(numberString => parseFloat(numberString));
+   mat.setBaseColorFactor(black);
+   
+   setTimeout(function()
+   {
+	 mat.setBaseColorFactor(white); 
+   }, 200);
+   
+   setTimeout(function()
+   {
+	 mat.setBaseColorFactor(black); 
+   }, 400);
+   
+   setTimeout(function()
+   {
+	 mat.setBaseColorFactor(white); 
+   }, 600);
+   
+   setTimeout(function()
+   {
+	 mat.setBaseColorFactor(clr.split(',').map(numberString => parseFloat(numberString))); 
+   }, 800);
+   
+}
+
+function ColorToHex(r,g,b) 
+{
+  r = Math.round(r*255);
+  g = Math.round(g*255);
+  b = Math.round(b*255);
+  
+  r = r.toString(16);
+  g = g.toString(16);
+  b = b.toString(16);
+
+  if (r.length == 1)
+    r = "0" + r;
+  if (g.length == 1)
+    g = "0" + g;
+  if (b.length == 1)
+    b = "0" + b;
+
+  return "#" + r + g + b;
+}
+

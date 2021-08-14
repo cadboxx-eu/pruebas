@@ -1,0 +1,240 @@
+
+var lcActiveActions = null;
+
+function openActions(actions)
+{
+	lcActiveActions = actions;
+	
+	buildActionsContent();
+	
+	$("#actions-dlg").show();
+}
+
+function closeActions()
+{
+	lcActiveActions = null;
+	$("#actions-dlg").hide();
+}
+
+function buildActionsContent()
+{
+	var txt = '<div class="w3-container">';
+	
+	for (var i = 0; i < lcActiveActions.length; i++)
+	    {
+		 var a = lcActiveActions[i];
+		 var str = '<div class="w3-bar">'+buildActionCommand(i,a);
+	     if (a.action == 'fly' || a.action == 'jump') str += buildActionView(i, a.view);
+		 else if (a.action == 'hotspot' || a.action == 'unview') str += buildActionHotspot(i, a.hotspot); 
+	     else if (a.action == 'play')   str += buildActionAnimation(i, a.animation);  
+	     else if (a.action == 'sound')  str += buildActionAsset(i, a.path);   
+	     else if (a.action == 'show')   str += buildActionPopup(i, a.popup);  
+	     else if (a.action == 'switch') str += buildActionSlide(i, a.slide); 
+	     else if (a.action == 'goto' || a.action == 'open' || a.action == 'notify') str += '<i><input style="width:65%; class="w3-input w3-round" type="text" placeholder="url" onchange="setActionUrl(this,'+i+')" oninput="setActionUrl(this,'+i+')" value="'+a.url+'"></i>';          
+
+		 str += '<a href="#"><i class="w3-large w3-right fa fa-trash"></i></a></div>';
+		 txt += str; 
+		}
+	
+    txt += '<br><div onclick="newAction()" class="w3-button w3-round w3-small w3-yellow w3-right">Add action</div><br></div>';	
+	
+	$("#actions-content").html(txt);
+}
+
+function newAction()
+{
+	glChange = true;
+	
+	var action = { action:"none" };
+	lcActiveActions.push(action);
+	
+	buildActionsContent();
+}
+
+function buildActionCommand(i, a)
+{
+	var str = '<select onchange="changeActionCmd(this, '+i+')" class="w3-select w3-bar-item w3-small" style="width:25%; background-color:#00000000;">';
+	str += '<option value="none">Select action</option>';
+	str += '<option value="fly">Fly to view</option>';
+	str += '<option value="jump">Jump to view</option>';
+	str += '<option value="play">Play animation</option>';
+	str += '<option value="stop">Stop animation</option>';
+	str += '<option value="sound">Play sound</option>';
+	str += '<option value="mute">Stop sound</option>';
+	str += '<option value="show">Show popup</option>';
+	str += '<option value="hide">Hide popup</option>';
+	str += '<option value="hotspot">Show hotspot</option>';
+	str += '<option value="unview">Hide hotspot</option>';
+	str += '<option value="switch">Switch slide</option>';
+	str += '<option value="goto">Goto url</option>';
+	str += '<option value="open">Open url</option>';
+	str += '<option value="notify">Notify</option>';
+   	str += '</select>';
+	
+	str = str.replace(a.action+'"', a.action+'" selected');
+	
+	return str;
+}
+
+function buildActionHotspot(i, id)
+{
+	var str = '<select onchange="changeActionHotspot(this, '+i+')" class="w3-select w3-bar-item w3-small" style="width:35%; background-color:#00000000;">';
+	str += '<option value="none">Select hotspot</option>';
+	
+	var hs = glPresentation.slides[glSlide].hotspots;
+	for (var i = 0; i < hs.length; i++)
+	    {
+	     str += '<option value="'+hs[i].id+'">'+hs[i].name+'</option>';
+		}
+   	str += '</select>';
+	
+	str = str.replace(id+'"', id+'" selected');
+	
+	return str;
+}
+
+function buildActionView(i, id)
+{
+	var str = '<select onchange="changeActionView(this, '+i+')" class="w3-select w3-bar-item w3-small" style="width:35%; background-color:#00000000;">';
+	str += '<option value="none">Select hotspot</option>';
+	
+	var vs = glPresentation.slides[glSlide].views;
+	for (var i = 0; i < vs.length; i++)
+	    {
+	     str += '<option value="'+vs[i].id+'">'+vs[i].name+'</option>';
+		}
+   	str += '</select>';
+	
+	str = str.replace(id+'"', id+'" selected');
+	
+	return str;
+}
+
+function buildActionPopup(i, id)
+{
+	var str = '<select onchange="changeActionPopup(this, '+i+')" class="w3-select w3-bar-item w3-small" style="width:35%; background-color:#00000000;">';
+	str += '<option value="none">Select popup</option>';
+	
+	var ps = glPresentation.slides[glSlide].popups;
+	for (var i = 0; i < ps.length; i++)
+	    {
+	     str += '<option value="'+ps[i].id+'">'+ps[i].name+'</option>';
+		}
+   	str += '</select>';
+	
+	str = str.replace(id+'"', id+'" selected');
+	
+	return str;
+}
+
+function buildActionSlide(i, id)
+{
+	var str = '<select onchange="changeActionPopup(this, '+i+')" class="w3-select w3-bar-item w3-small" style="width:35%; background-color:#00000000;">';
+	str += '<option value="none">Select slide</option>';
+	
+	var ss = glPresentation.slides;
+	for (var i = 0; i < ss.length; i++)
+	    {
+	     str += '<option value="'+ss[i].id+'">'+ss[i].name+'</option>';
+		}
+   	str += '</select>';
+	
+	str = str.replace(id+'"', id+'" selected');
+	
+	return str;
+}
+
+function buildActionAnimation(i, an)
+{
+	var str = '<select onchange="changeActionAnimation(this, '+i+')" class="w3-select w3-bar-item w3-small" style="width:35%; background-color:#00000000;">';
+	str += '<option value="none">Select animation</option>';
+	
+    var ans = glMV.availableAnimations;
+	for (var i = 0; i < ans.length; i++)
+	    {
+	     str += '<option value="'+ans[i]+'">'+ans[i]+'</option>';
+		}
+	str += '</select>';
+	
+	str = str.replace(an+'"', an+'" selected');
+	
+	return str;
+}
+
+function changeActionCmd(sel, i)
+{
+	if (sel.value == lcActiveActions[i].action) return;
+	
+	glChange = true;
+	
+	if (sel.value == 'none')         lcActiveActions[i] = { action:sel.value };
+	else if (sel.value == 'fly')     lcActiveActions[i] = { action:sel.value, view:"none" };   //Fly to view
+	else if (sel.value == 'jump')    lcActiveActions[i] = { action:sel.value, view:"none" };   //Jump to view
+	else if (sel.value == 'play')    lcActiveActions[i] = { action:sel.value, animation:"none" }; //Play animation
+	else if (sel.value == 'stop')    lcActiveActions[i] = { action:sel.value }                    //Stop animation
+	else if (sel.value == 'sound')   lcActiveActions[i] = { action:sel.value, path:"" };          //Play sound
+	else if (sel.value == 'mute')    lcActiveActions[i] = { action:sel.value }                    //;>Stop sound
+	else if (sel.value == 'show')    lcActiveActions[i] = { action:sel.value, popup:"none" };     //Show popup
+	else if (sel.value == 'hide')    lcActiveActions[i] = { action:sel.value };                   //Hide popup
+	else if (sel.value == 'hotspot') lcActiveActions[i] = { action:sel.value, hotspot:"none" };   //Show hotspot
+	else if (sel.value == 'unview')  lcActiveActions[i] = { action:sel.value, hotspot:"none" };   //Hide hotspot
+	else if (sel.value == 'switch')  lcActiveActions[i] = { action:sel.value, slide:"none" };     //Switch slide
+	else if (sel.value == 'goto')    lcActiveActions[i] = { action:sel.value, url:"" };           //Goto url
+	else if (sel.value == 'open')    lcActiveActions[i] = { action:sel.value, url:"" };           //Open url
+	else if (sel.value == 'notify')  lcActiveActions[i] = { action:sel.value, url:"" }
+ 
+		
+	buildActionsContent();
+}
+
+function changeActionHotspot(sel, i)
+{
+	if (sel.value == lcActiveActions[i].hotspot) return;
+	
+	glChange = true;
+	
+	lcActiveActions[i].hotspot = sel.value;
+}
+
+function changeActionView(sel, i)
+{
+	if (sel.value == lcActiveActions[i].view) return;
+	
+	glChange = true;
+	
+	lcActiveActions[i].view = sel.value;
+}
+
+function changeActionPopup(sel, i)
+{
+	if (sel.value == lcActiveActions[i].popup) return;
+	
+	glChange = true;
+	
+	lcActiveActions[i].popup = sel.value;
+}
+
+function changeActionSlide(sel, i)
+{
+	if (sel.value == lcActiveActions[i].slide) return;
+	
+	glChange = true;
+	
+	lcActiveActions[i].slide = sel.value;
+}
+
+function changeActionAnimation(sel, i)
+{
+	if (sel.value == lcActiveActions[i].animation) return;
+	
+	glChange = true;
+	
+	lcActiveActions[i].animation = sel.value;
+}
+
+function setActionUrl(txt, i)
+{
+	glChange = true;
+	
+	lcActiveActions[i].url = txt.value;
+}

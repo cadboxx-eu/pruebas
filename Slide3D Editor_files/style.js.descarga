@@ -1,0 +1,192 @@
+
+var lcStyles = null;
+var lcCurrStyle = "";
+
+function buildCss()
+{
+	if (lcStyles == null) return;
+	
+	var css = "";
+	
+	for (var i = 0; i < lcStyles.styles.length; i++)
+	    {
+		 css += buildClass(lcStyles.styles[i])+'\n';
+		}
+		
+	//var cssid = document.getElementById("userCSS");
+    //cssid.innerHTML = css;
+		
+	$("#userCSS").html(css);
+}
+
+function loadStyle()
+{
+	lcStyles = null;
+	
+	$.get(glOprDir+"style.php?cmd=get", function(data, status)
+	{
+	  lcStyles = JSON.parse(data);
+      buildCss();
+	});
+}
+
+function saveStyle()
+{
+	var styleJson = JSON.stringify(lcStyles);
+	//var cssid = document.getElementById("userCSS");
+	var styleCss  = $("#userCSS").html();//  cssid.innerHTML;
+	
+	$.post(glOprDir+"style.php?cmd=set", { style: styleJson });
+	$.post(glOprDir+"style.php?cmd=save", { css: styleCss });
+}
+
+function newStyle()
+{
+	$.get(glOprDir+"style.php?cmd=new", function(data, status)
+	{
+	  var style = JSON.parse(data);
+      style.id = 'cls-'+lcStyles.ids;
+      lcStyles.ids++;
+	  style.name='';
+	  
+	  lcCurrStyle = style.id;
+	  lcStyles.styles.push(style);
+	  
+	  showStylesEditor();
+	});
+}
+
+function deleteStyle()
+{
+	for (var i = 0; i < lcStyles.styles.length; i++)
+	    {
+		 if (lcStyles.styles[i].id == lcCurrStyle)
+		    {
+			 lcStyles.styles.splice(i,1);
+			 i = lcStyles.styles.length;
+			} 
+	    }
+	
+	lcCurrStyle = "";
+	
+	showStylesEditor();
+}
+
+function buildClass(st)
+{
+	var str = '.'+st.id+' {';
+
+    //background
+	if (true == st.background.color.use) str += 'background-color:'+st.background.color.value+';';
+	if (true == st.background.opacity.use) str += 'opacity:'+st.background.opacity.value+';';
+	if (true == st.background.image.use) str += 'background-image:'+st.background.image.value+';';
+	
+	//border
+	if (true == st.border.color.use) str += 'border-color:'+st.border.color.value+';';
+	if (true == st.border.style.use) str += 'border-style:'+st.border.style.value+';';
+	if (true == st.border.width.use) str += 'border-width:'+st.border.width.value+st.border.width.unit+';';
+	if (true == st.border.radius.use) str += 'border-radius:'+st.border.radius.value+st.border.radius.unit+';';
+
+	//margin
+    if (true == st.margin.top.use) str += 'margin-top:'+st.margin.top.value+st.margin.top.unit+';';		
+    if (true == st.margin.right.use) str += 'margin-right:'+st.margin.right.value+st.margin.right.unit+';';		
+    if (true == st.margin.bottom.use) str += 'margin-bottom:'+st.margin.bottom.value+st.margin.bottom.unit+';';		
+    if (true == st.margin.left.use) str += 'margin-left:'+st.margin.left.value+st.margin.left.unit+';';		
+
+  	//padding
+    if (true == st.padding.top.use) str += 'padding-top:'+st.padding.top.value+st.padding.top.unit+';';		
+    if (true == st.padding.right.use) str += 'padding-right:'+st.padding.right.value+st.padding.right.unit+';';		
+    if (true == st.padding.bottom.use) str += 'padding-bottom:'+st.padding.bottom.value+st.padding.bottom.unit+';';		
+    if (true == st.padding.left.use) str += 'padding-left:'+st.padding.left.value+st.padding.left.unit+';';		
+
+    //text
+	if (true == st.text.color.use)
+	   {
+		str += 'color:'+st.text.color.value;
+		if (true == st.text.opacity.use) str += Math.round(st.text.opacity.value*255).toString(16).toLowerCase(); 
+		str += ';';
+	   }
+	if (true == st.text.align.use) str += 'text-align:'+st.text.align.value+';';
+	if (true == st.text.direction.use) str += 'direction:'+st.text.direction.value+';';
+	if (true == st.text.vertical.use) str += 'vertical-align:'+st.text.vertical.value+';';
+	if (true == st.text.decoration.use) str += 'text-decoration:'+st.text.decoration.value+';';
+	if (true == st.text.transform.use) str += 'text-transform:'+st.text.transform.value+';';
+	if (true == st.text.indent.use) str += 'text-indent:'+st.text.indent.value+st.text.indent.unit+';';
+	if (true == st.text.letter.use) str += 'letter-spacing:'+st.text.letter.value+st.text.letter.unit+';';
+	if (true == st.text.line.use) str += 'line-height:'+st.text.line.value+st.text.line.unit+';';
+	if (true == st.text.word.use) str += 'word-spacing:'+st.text.word.value+st.text.word.unit+';';
+	if (true == st.text.white.use) str += 'white-space:'+st.text.white.value+';';
+
+    //font
+	if (true == st.font.family.use) str += 'font-family:'+st.font.family.value+';';
+	if (true == st.font.size.use) str += 'font-size:'+st.font.size.value+st.font.size.unit+';';
+	if (true == st.font.style.use) str += 'font-style:'+st.font.style.value+';';
+	if (true == st.font.weight.use) str += 'font-weight:'+st.font.weight.value+';';
+	if (true == st.font.variant.use) str += 'font-variant-caps:'+st.font.variant.value+';';
+
+		
+
+	//shadow 
+	if (true == st.shadow.box.use) str += 'box-shadow:'+st.shadow.box.value+';';
+	if (true == st.shadow.text.use) str += 'text-shadow:'+st.shadow.text.value+';';
+    //"outline": { "use": false, "value":0, "unit":"px" },
+	//"overflow": { "use": false, "value":0, "unit":"px" },
+	//"float": { "use": false, "value":0, "unit":"px" },
+	
+	str += st.extra+'}';
+	
+	return str;
+}
+
+function showStylesEditor()
+{
+	//lcCurrStyle='cls-1';
+	
+	if (null == lcStyles) 
+	   {
+		$("#styleEditorContent").html("");
+		
+		return;
+	   }
+	   
+	var str = "";   
+	for (var i = 0; i < lcStyles.styles.length; i++)
+	    {
+		 var st = lcStyles.styles[i];
+		 if (st.id == lcCurrStyle) 
+		    {
+	         str += ' <div style="width:100%" class="w3-orange"><input id="stylName" class="w3-border w3-small" style="margin:8px 0;background-color:#00000000; width:80%" type="text"><div class="w3-button w3-right" onclick="lcCurrStyle=\'\'; showStylesEditor();"><i class="w3-large fa fa-angle-up"></i></div></div><div id="currStyle" style="width:100%"></div><br>';
+			 
+			 var selStyle = lcStyles.styles[i];
+			 $.get(glOprDir+'style.html', function(data, status)
+	              {
+		           $("#currStyle").html(data);
+				   SetStyle(selStyle);
+				  });
+			}
+         else {
+			   var n = st.name;
+			   if (n.length < 1) n = st.id;
+			   str += '<div class="w3-button w3-gray w3-small w3-center" style="width:100%" onclick="lcCurrStyle=\''+st.id+'\'; showStylesEditor();">'+n+'</div><br>';
+		      }	
+        }
+		
+    str += '<div style="width:100%" class="w3-center"><br><div class="w3-button w3-yellow w3-round" onclick="newStyle()">Add Style</div><br></div>';
+
+    $("#styleEditorContent").html(str);
+    $("#styleEditor").show();	
+}
+
+function buildStylesSelect(ext)
+{
+	var str = '<select class="w3-select w3-border" id="'+ext+'StylesList"><option value="" class="w3-text-orange">none</option>';
+	for (var i = 0; i < lcStyles.styles.length; i++)
+	    {
+		 var n = lcStyles.styles[i].name;
+		 if (n.length < 1) n = lcStyles.styles[i].id;
+		 str += '<option value="'+lcStyles.styles[i].id+'" class="w3-text-orange">'+n+'</option>';
+		}
+	str += '</select>';
+	
+	return str;
+}

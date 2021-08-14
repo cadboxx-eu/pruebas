@@ -1,0 +1,639 @@
+glEditor = true;
+glChange = false;
+
+var glActivePoi = -1;
+var glActiveView = -1;
+var glActiveUi = -1;
+var glActivePopup = -1;
+var glPrevSlide = -1;
+
+var glUpdateStyle = null;
+var glUpdateText = null;
+
+var glOrgName = "";
+var glOrgUUID = "";
+
+var glLoggedIn = false;
+
+$('#proj').on('slide',  function(obj)
+{
+    closeAccurdion('uis-screen');
+    closeAccurdion('uis-anot');
+    closeAccurdion('uis-pops');
+	
+	glActivePoi = -1;
+	glActiveUi = -1;
+	glActivePopup = -1;
+	glActiveView  = -1;
+	
+	buildSlidesTab();
+	buildPoisTab();
+	buildUiTab();
+	
+	saveMaterials(glPrevSlide);
+	glPrevSlide = glSlide;
+});
+
+$('#proj').on('model',  function(obj)
+{
+	loadMaterials();
+});
+
+$("#textEditorContent").on("input change", function()
+{
+	if (null != glUpdateText) glUpdateText(this.value);
+});
+
+function selectTab(evt, tabName, phpFile, func)
+{
+	var i, x, tablinks;
+    x = document.getElementsByClassName("edtTab");
+    for (i = 0; i < x.length; i++) 
+	    {
+         x[i].style.display = "none";
+        }
+	document.getElementById(tabName).style.display = "block";
+
+  tablinks = document.getElementsByClassName("tablink");
+  for (i = 0; i < tablinks.length; i++)
+      {
+       tablinks[i].className = tablinks[i].className.replace(" w3-yellow", "");
+      }
+	  
+  var tab = $('.'+tabName+'Btn');
+  if (null != tab) tab.addClass("w3-yellow"); 
+  //evt.currentTarget.className += " w3-yellow";
+  
+  if (null != func)
+     {
+	  func();
+     }
+  else {
+        $.post(glOprDir+phpFile, function(data, status)
+              {
+               $('#'+tabName).html(data);
+              });
+       }
+}
+
+
+function showError(msg)
+{
+	alert(msg);
+}
+
+
+
+function closeAccurdion(id) 
+{
+  var x = document.getElementById(id);
+  var u = $('#'+id+'-up');
+  var d = $('#'+id+'-down');
+  x.className = x.className.replace(" w3-show", "");
+  d.show();
+  u.hide();  
+}
+
+function accurdion(id) 
+{
+  var x = document.getElementById(id);
+  var u = $('#'+id+'-up');
+  var d = $('#'+id+'-down'); 
+  if (x.className.indexOf("w3-show") == -1) 
+     {
+      x.className += " w3-show";
+      u.show();
+      d.hide();
+     } 
+  else {
+	    x.className = x.className.replace(" w3-show", "");
+        d.show();
+        u.hide();
+       }
+}
+
+function editorHelp(id)
+{
+	$("#editorHelpContainer").width('50%'); 
+	$("#editorHelpContainer").height('80%');
+	$("#editorHelp").show();
+	
+	var child = document.getElementById('editorHelpContent');
+    child.style.paddingRight = child.offsetWidth - child.clientWidth + "px";
+	
+	var off = document.getElementById(id).offsetTop;
+    document.getElementById('editorHelpContent').scrollTop = off-10;
+}
+
+function editorGuids()
+{
+	$.get(glOprDir+"guids.html", function(data, status)
+	     {
+	      showMessage("60%", "Guids", data);
+		 });
+}
+
+function buildProjectTab(show)
+{
+	var url = "";
+	
+	if (glPresentation == null) url = glOprDir+"presentation.php?cmd=close";
+	else url = glOprDir+"presentation.php?cmd=proj";
+	
+	if (url.length > 3)
+	   {
+		$.get(url, function(data, status)
+             {
+	          if (data.startsWith("{"))
+                 {
+		          var obj = JSON.parse(data);
+                  showMessage(obj.width, obj.header, obj.msg);
+			     }
+              else {
+  				    $('#presentationTab').html(data);
+					if (null != glPresentation) setProjectProperties();
+					if (null != show) accurdion(show);
+			       }
+             });
+	   }
+	   
+	glActivePoi = -1;
+}
+
+function buildSlidesTab()
+{
+	if (null == glPresentation)
+	   {
+		$("#slideTab").html('<div class="w3-center"><br>No active presentation</div>');
+		
+		return;
+	   }
+     
+	var src = "";
+	var s = glPresentation.slides;
+	var id = "";
+	   
+	for (var i = 0; i < s.length; i++)
+	    {
+		 if (i == glSlide)
+		    {
+			 src += '<div class="w3-border w3-row-padding w3-black w3-padding-small" id="'+s[i].id+'"></div>';
+			 id = s[i].id;			  
+			}
+         else {
+			   src += '<div class="w3-border w3-row-padding w3-black w3-padding-small" id="'+s[i].id+'">';
+			   src += '<image class="w3-button w3-border w3-third w3-round" src="'+s[i].pic+'" onclick="switchSlide('+i+')"></image>';
+               src += '<div class="w3-twothird"><label class="w3-text-orange">'+s[i].name+'</label></div>';
+	           src += '<a href="javascript:switchSlide('+i+')" class="w3-right"><i class="w3-large w3-right fa fa-angle-down"></i></a><br><br>';
+	           src += '<a href="#"><i class="w3-large fa fa-trash"></i></a>';
+	           src += '<a href="#"><i class="w3-large w3-right fa fa-angle-down"></i></a>';
+	           src += '<span class="w3-right">&nbsp;&nbsp;</span>';
+	           src += '<a href="#"><i class="w3-large w3-right fa fa-angle-up"></i></a></div>';
+		      }			   
+		}
+		
+	src += '<br><div class="w3-container"><div class="w3-button w3-yellow w3-right w3-round w3-samll" onclick="newSlide()">Add new slide</div></div>';
+	
+	$("#slideTab").html(src);
+	if (id.length > 0)
+	   {
+	    $.get(glOprDir+"slide.html?u=123", function(data, status)
+             {
+		      $("#"+id).html(data);
+			  setSlideProperties();
+             });	
+	   }
+	   
+	glActivePoi = -1;
+}
+
+function buildPoisTab()
+{
+	if (null == glPresentation || glSlide < 0 || glSlide > glPresentation.slides.length)
+	   {
+		$("#poiTab").html('<div class="w3-center"><br>No active slide</div>');
+		
+		return;
+	   }
+	   
+	var hs = glPresentation.slides[glSlide].hotspots;
+	
+	var src = "";
+	var id  = "";
+	
+	src += '<br><i class="w3-bar w3-text-orange">Hotspots:</i>';
+	for (var i = 0; i < hs.length; i++)
+	    {
+		 if (hs[i].active == false) continue;
+		 if (i == glActivePoi)
+		    {
+			 src += '<div id="activePoi" class="w3-row-padding w3-black w3-padding-small w3-border"></div>';
+			 id = "activePoi";
+			}
+		 else {
+			   var hte = '<div class="w3-row-padding w3-black w3-padding-small w3-border">';
+               if (hs[i].name.length > 0) hte += '<label class="w3-text-orange">'+hs[i].name+'</label>';
+			   else hte += '<label class="w3-text-gray"><i>&lt;Hotspot name&gt;</i></label>'; 
+               hte += '<a href="javascript:glActivePoi='+i+'; buildPoisTab();"><i class="w3-large w3-right fa fa-angle-down"></i></a>';
+               hte += '<span class="w3-right">&nbsp;&nbsp;</span><a href="javascript:deletePoi('+i+');"><i class="w3-large w3-right fa fa-trash"></i></a></div>';
+			   
+			   src += hte;
+		      }
+	    }
+	src += '<div class="w3-container"><br><div class="w3-button w3-yellow w3-right w3-round w3-samll" onclick="newPoi()">Add Hotspot</div></div>';
+
+    var vs = glPresentation.slides[glSlide].views;
+   	src += '<br><i class="w3-bar w3-text-orange">Views:</i>';
+	for (var v = 0; v < vs.length; v++)
+	    {
+		 if (v == glActiveView)
+		    {
+			 src += '<div id="activeView" class="w3-row-padding w3-black w3-padding-small w3-border"></div>';
+			 //flyToView(vs[v].id);
+			}
+         else {
+			   var ve = '<div class="w3-row-padding w3-black w3-padding-small w3-border">';
+               if (vs[v].name.length > 0) ve += '<label class="w3-text-orange">'+vs[v].name+'</label>';
+			   else ve += '<label class="w3-text-gray"><i>&lt;View name&gt;</i></label>'; 
+               ve += '<a href="javascript:glActiveView='+v+'; buildPoisTab();"><i class="w3-large w3-right fa fa-angle-down"></i></a>';
+               ve += '<span class="w3-right">&nbsp;&nbsp;</span><a href="javascript:deleteView('+v+');"><i class="w3-large w3-right fa fa-trash"></i></a></div>';
+			   
+			   src += ve;
+		      }			 
+		}
+	src += '<div class="w3-container"><br><div class="w3-button w3-yellow w3-right w3-round w3-samll" onclick="newView()">Add View</div></div>';
+
+
+	$("#poiTab").html(src);
+
+    if (id.length > 2) 
+	   {
+        $.get(glOprDir+"poi.html", function(data, status)
+             {
+		      $("#"+id).html(data);
+			  setPoiProperties();
+             });
+ 	   }
+    if (glActiveView > -1) 
+	   {
+        $.get(glOprDir+"view.html", function(data, status)
+             {
+		      $("#activeView").html(data);
+			  setViewProperties();
+             });
+ 	   }	   
+} 
+
+var lcUiContent = "";
+function buildUiTab() 
+{
+	if (null == glPresentation || glSlide < 0 || glSlide > glPresentation.slides.length)
+	   {
+		lcUiContent = $("#uiTab").html();  
+		   
+		$("#uiTab").html('<div class="w3-center"><br>No active slide</div>');
+		
+		return;
+	   }
+	   
+	if (lcUiContent.length > 0) 
+	   {
+		$("#uiTab").html(lcUiContent);
+		lcUiContent = "";
+	   }
+
+    var s = glPresentation.slides[glSlide];
+	var as = s.uis;
+	var ps = s.popups;
+
+    var id = "";
+    var txt = "";
+	for (var i = 0; i < as.length; i++)
+	    {
+		 if (i == glActiveUi)
+		    {
+			 id = "activeUi";	
+			 txt += '<div id="activeUi" class="w3-container w3-border w3-padding-small w3-dark-gray"></div>';
+			}
+		 else {
+			   var str = '<div class="w3-row-padding w3-black w3-padding-small w3-border">';
+			   if (as[i].name.length < 1) str += '<label class="w3-text-orange"><i>&lt;Ui element&gt;</i></label>';
+               else str += '<label class="w3-text-orange">'+as[i].name+'</label>';
+               str += '<a href="javascript:glActiveUi='+i+';buildUiTab();"><i class="w3-large w3-right fa fa-angle-down"></i></a>'
+               str += '<span class="w3-right">&nbsp;&nbsp;</span>'
+               str += '<a href="javascript:deleteUi('+i+')"><i class="w3-large w3-right fa fa-trash"></i></a></div>';
+			   txt += str;
+		      }
+	    }
+	txt += '<br><div class="w3-button w3-yellow w3-right w3-small w3-round" onclick="newUi();">Add UI element</div><br>';
+	$("#uis-anot").html(txt);
+	
+	if (id.length > 2) 
+	   {
+        $.get(glOprDir+"ui.html", function(data, status)
+             {
+		      $("#activeUi").html(data);
+			  setUiProperties();
+             });
+ 	   }
+	
+	txt = "";
+	id = "";
+	for (var i = 0; i < ps.length; i++)
+	    {
+		 if (i == glActivePopup)
+		    {
+			 id = "activePopup";	
+			 txt += '<div id="activePopup" class="w3-container w3-border w3-padding-small w3-dark-gray"></div>';
+			}
+		 else {
+			   var str = '<div class="w3-row-padding w3-black w3-padding-small w3-border">';
+			   if (ps[i].name.length < 1) str += '<label class="w3-text-orange"><i>&lt;Ui element&gt;</i></label>';
+               else str += '<label class="w3-text-orange">'+ps[i].name+'</label>';
+               str += '<a href="javascript:glActivePopup='+i+';buildUiTab();"><i class="w3-large w3-right fa fa-angle-down"></i></a>'
+               str += '<span class="w3-right">&nbsp;&nbsp;</span>'
+               str += '<a href="javascript:deletePopup('+i+')"><i class="w3-large w3-right fa fa-trash"></i></a></div>';
+			   txt += str;
+		      }
+	    }
+	txt += '<br><div class="w3-button w3-yellow w3-right w3-small w3-round" onclick="newPopup();">Add Popup</div><br><br>';
+	$("#uis-pops").html(txt);
+	
+	if (id.length > 2) 
+	   {
+        $.get(glOprDir+"popup.html", function(data, status)
+             {
+		      $("#activePopup").html(data);
+			  setPopupProperties();
+			  
+			  showPopup(ps[glActivePopup].id);
+             });
+ 	   }
+}	
+
+
+
+function newSlide()
+{
+	glChange = true;
+	
+	var slide = {};
+	slide.id = 'sld-'+glPresentation.ids++;
+	slide.name = "";
+	slide.model = "";
+	slide.pic = "mv/pic.jpg";
+	slide.autoPlay = true;
+	slide.autoRotate = false;
+	slide.overwriteEnvironment = false;
+	slide.overwriteLimits = false;
+	slide.hotspots = [];
+	slide.views = [];
+	slide.popups = [];
+	slide.uis = [];
+	slide.screen = { x:"100%", y:"100%" };
+	slide.onStart = [];
+	slide.overwriteControl = false;
+	
+	glPresentation.slides.push(slide);
+	glSlide = glPresentation.slides.length-1;
+	
+	buildSlidesTab();
+	ShowSlide();
+}
+
+function newPoi()
+{
+	glChange = true;
+	
+	var hotspot = {};
+	hotspot.id = 'poi-'+glPresentation.ids++;
+	hotspot.name = "";
+	hotspot.type = "circle";
+	hotspot.annotation = { type:'t', text:"", image:"", video:"", onClick:[]};
+	hotspot.annotation.line = false;
+	hotspot.annotation.lineColor = "#ffffff";
+	hotspot.annotation.lineStroke = 1;
+	hotspot.annotation.position = { left:      { val:'calc(100% + 1em)', use:true, unit:'&nbsp;'}, 
+	                                top:       { val:'50', use: true, unit:'%'},
+						            right:     { val:'', use:false, unit:'px'},
+						            bottom:    { val:'', use:false, unit:'px'},
+						            width:     { val:'max-content', use:true, unit:''},
+                                 	height:    { val:'', use:false, unit:'px'},
+                                 	minWidth:  { val:'', use:false, unit:'px'},
+                                 	maxWidth:  { val:'128', use:true, unit:'px'},
+                                 	minHeight: { val:'', use:false, unit:'px'},
+	                                maxHeight: { val:'', use:false, unit:'px'},
+									transform: { val:'translate(-50%,-50%)', use:false}};
+						 
+	//hotspot.annotation.style = 'background:#fff;border-radius: 4px;box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);color: rgba(0, 0, 0, 0.8);display: block;font-family: Futura, Helvetica Neue, sans-serif;font-size: 18px;font-weight: 700;padding: 0.5em 1em;position:absolute;';
+	hotspot.annotation.style = '';
+	hotspot.annotation.class = 'cls-1';
+	var p = glMV.positionAndNormalFromPoint(glMV.offsetWidth/2, glMV.offsetHeight/2);
+	if (null != p)
+	   {
+		hotspot.pos = p.position.toString(); 
+		hotspot.normal = p.normal.toString(); 
+	   }
+	
+	glPresentation.slides[glSlide].hotspots.push(hotspot);
+	glActivePoi = glPresentation.slides[glSlide].hotspots.length-1;
+	
+	hotspot.slot = glSlot++;
+	hotspot.active = true;
+	
+    //glMV.innerHTML +='<div id="'+hotspot.id+'" slot="hotspot-'+hotspot.slot+'"></div>';
+	glMV.innerHTML += '<button onclick="doActionsHotspot('+glActivePoi+');" id="'+hotspot.id+'" slot="hotspot-'+hotspot.slot+'"></button>';
+	setHotSpot(hotspot);
+	
+	buildPoisTab();
+}
+
+function newView()
+{
+	glChange = true;
+	var view = { id: 'view-'+glPresentation.ids++, name:"", cov:"none", onSet:[] };
+	
+    var o = glMV.getCameraOrbit();
+	var p = Math.round(o.phi*180/Math.PI);
+	var t = Math.round(o.theta*180/Math.PI);
+	var d = Math.round(o.radius*1000)/1000;
+	
+	view.yaw = t;
+	view.pitch = p;
+	view.distance = d;
+	
+	glPresentation.slides[glSlide].views.push(view);
+	glActiveView = glPresentation.slides[glSlide].views.length-1;
+	
+	buildPoisTab();
+}
+
+function newUi()
+{
+	glChange = true;
+	
+	var ui = { id:"ui-"+glPresentation.ids++, name:"", type:'t', text:"", image:"", video:"", onClick:[] };
+		
+	ui.style = '';
+	ui.class = 'cls-1';
+	ui.position = { left:      { val:'50', use:true, unit:'%'}, 
+	                top:       { val:'50', use: true, unit:'%'},
+					right:     { val:'', use:false, unit:'px'},
+					bottom:    { val:'', use:false, unit:'px'},
+					width:     { val:'max-content', use:true, unit:''},
+                    height:    { val:'', use:false, unit:'px'},
+                    minWidth:  { val:'', use:false, unit:'px'},
+                    maxWidth:  { val:'128', use:false, unit:'px'},
+                    minHeight: { val:'', use:false, unit:'px'},
+	                maxHeight: { val:'', use:false, unit:'px'},
+					transform: { val:'translate(-50%,-50%)', use:false}};
+
+    glPresentation.slides[glSlide].uis.push(ui);
+	glActiveUi = glPresentation.slides[glSlide].uis.length-1;
+	
+	buildUis(glPresentation.slides[glSlide].uis);
+	buildUiTab();
+}
+
+function newPopup()
+{
+	glChange = true;
+	
+	var popup = { id:"ui-"+glPresentation.ids++, name:"", type:'t', text:"", image:"", video:"", html:""};
+	popup.style = '';
+    popup.class = 'cls-1';
+	popup.position = { left:      { val:'50', use:true, unit:'%'}, 
+	                   top:       { val:'50', use: true, unit:'%'},
+				       right:     { val:'', use:false, unit:'px'},
+					   bottom:    { val:'', use:false, unit:'px'},
+					   width:     { val:'40', use:true, unit:'%'},
+                       height:    { val:'60', use:true, unit:'%'},
+                       minWidth:  { val:'', use:false, unit:'px'},
+                       maxWidth:  { val:'128', use:false, unit:'px'},
+                       minHeight: { val:'', use:false, unit:'px'},
+	                   maxHeight: { val:'', use:false, unit:'px'},
+					   transform: { val:'translate(-50%,-50%)', use:true}};
+
+    glPresentation.slides[glSlide].popups.push(popup);
+	glActivePopup = glPresentation.slides[glSlide].popups.length-1;
+	
+	showPopup(popup.id);
+	buildUiTab();
+}
+
+function deletePoi(i)
+{
+	glChange = true;
+	
+	if (glActivePoi == i) glActivePoi = -1;
+	glPresentation.slides[glSlide].hotspots[i].active = false;
+	
+	var o = document.getElementById(glPresentation.slides[glSlide].hotspots[i].id);
+    o.remove();
+	
+	buildPoisTab();	   	
+}
+
+function deleteView(v)
+{
+	glChange = true;
+	
+	if (glActiveView == v) glActiveView = -1;
+	
+	glPresentation.slides[glSlide].views.splice(v, 1);
+	
+	buildPoisTab();
+}
+
+function deleteUi(i)
+{
+	glChange = true;
+	
+	if (glActiveUi == i) glActiveUi = -1;
+	
+	var o = document.getElementById(glPresentation.slides[glSlide].uis[i].id);
+    o.remove();
+	
+	glPresentation.slides[glSlide].uis.splice(i, 1);
+	
+	buildUiTab();	   	
+}
+
+function deletePopup(i)
+{
+	glChange = true;
+	
+	if (glActivePopup == i) glActivePopup = -1;
+	
+	closePopup();
+	
+	glPresentation.slides[glSlide].popups.splice(i, 1);
+	
+	buildUiTab();	   	
+}
+
+function switchSlide(s)
+{
+	glSlide = s;
+	ShowSlide();
+	buildSlidesTab();
+}
+
+function closeProject()
+{
+	glPresentation = null;
+	
+	glMV.setAttribute('src', glOprDir+'empty.glb');
+	glMV.setAttribute('camera-target', '100m 100m 100m 2m');
+	glMV.style.background = 'linear-gradient(#245A94,#454545)';
+	glMV.innerHTML = "";
+	$("#ui").html('');
+	$("#nav").html('');
+	$("#mainMenu").html('');
+	$("#mainMenu").attr("class","");
+	
+	var mainMenu = '<a href="javascript:editorHelp(\'intro\');" class="w3-bar-item w3-button">Help</a><a href="javascript:editorGuids();" class="w3-bar-item w3-button">Guids</a>';
+		
+	$("#mainMenu").html(mainMenu);
+	$("#mainMenu").attr("class","w3-dropdown-content w3-bar-block w3-border");
+	
+	
+	$.get(glOprDir+"account.php?cmd=status", function(data, status)
+	{
+		if (data == "in") selectTab(event, 'presentationTab', 'presentation.php?cmd=close', buildProjectTab);
+		else document.getElementById('accBtn').click();
+	});
+}
+
+function showAssets(dir)
+{
+	$.get(glOprDir+"assets.php?cmd=show&dir="+dir, function(data, status)
+	{
+	  $("#editorAssetsContent").html(data);
+  	  $("#editorAssets").show();
+	});
+}
+
+$.urlParam = function(name)
+{
+    var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+    if (results==null) return null;
+    else return results[1] || 0;
+}
+
+function auto()
+{
+    var user = $.urlParam('user');
+    var pass = $.urlParam('pass');
+    var prst = $.urlParam('prst');	
+	
+	if (null != user && null != pass)
+	   {
+		$("#email").val(user);
+        $("#ipassword").val(pass);   
+		login();
+	   }
+}
+
+
+
